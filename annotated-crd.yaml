@@ -1,0 +1,331 @@
+---
+apiVersion: planetscale.com/v1alpha1
+kind: PsCluster
+metadata:
+   # name is the name of the cluster. Must conform to kubernetes naming guide (https://github.com/kubernetes/community/blob/master/contributors/design-proposals/architecture/identifiers.md).
+   # +required
+    name: < string >
+spec:
+  # monitored specifies whether you would like the operator to provision you a prometheus and grafana cluster for monitoring.
+  # +optional, default: true
+  monitored: < bool >
+
+  # containers lists the individual containers to be used for each component.
+  # +optional, default: registry.planetscale.com/vitess/slim:latest
+  containers:
+    vtctld: < string >
+    vttablet: < string >
+    mysql: < string >
+    vtgate: < string >
+    vtworker: < string >
+
+  # count sets the number of lockserver instances to create
+  # +optional, default 3
+  lockserver_count: < int>
+
+  # lockserver sets your external lockserver of choice. If empty, the operator will provision an etcd cluster for you
+  # +optional, default: provision etcd
+  lockserver:
+    # type selects the flavor of lockserver you are using.
+    # +optional, default: etcd
+    # Options: etcd, zk2, consul
+    type: < string >
+
+    # endpoint is the address of the lockserver.
+    # +required
+    endpoint: < string >
+
+    # root_path is the root where all global information is stored.
+    # +required
+    root_path: < string >
+
+  # cells is a list of Vitess cells.
+  # +optional, default: empty
+  cells:
+  - # name is the name of the cell.
+    # +required
+    name: < string >
+
+    # backup configures the backups for this cell.
+    # +optional, default: no backups
+    backup:
+      # type defines the type of backups to be configured.
+      # +required
+      # options: file, gcs, s3
+      type: <string >
+
+      # endpoint is the s3 endpoint to use ( only used for type s3 ).
+      # +optional, default: global s3 endpoint
+      endpoint: < string >
+
+      # region is the AWS region to use ( only used for type s3 ).
+      # +optional, default: current running region
+      region: < string >
+
+      # project is the gcs project to use ( only used for type gcs ).
+      # +optional, default: current running project
+      project: < string >
+
+      # The bucket to use ( for gcs and s3 ).
+      # +required when using gcs or s3
+      bucket: < string >
+
+      # The root path to store backups in.
+      # +required for type file, +optional for all others
+      root: < string >
+
+    # useGlobalLockserver is a flag to use the global lockserver for this cell.
+    # +optional, default: false
+    useGlobalLockserver: < bool >
+
+    # lockserver is the same as the global sructure.
+    # +optional, default: provision an etcd server, or if useGlobalLockserver is true, reuse the global lockserver
+    lockserver:
+      type: < string >
+      endpoint: < string >
+      root_path: < string >
+
+    # config is a text block that will be injected into all mysql containers as mysqlconfig. This can be used to override any Vitess default parameters or set custom Vitess parameters.
+    # +optional, default: empty
+    config: < string >
+
+    # orchestrator configures the cell's Orchestrator deployment, currently must be provisioned manually and external to operator.
+    # +optional, default: do not configure orchestrator
+    orchestrator:
+      # url is the API endpoint for the Orchestrator service.
+      # +required
+      url: < string >
+
+      # discovery is the setting for the discovery interval. Must be in a format understood by golang ParseDuration (https://golang.org/pkg/time/#ParseDuration).
+      # +optional, default: 5m
+      discovery: < string >
+
+    # grpcSecret selects a secret that contains the TLS certificates used for all GRPC communication.
+    # +optional, default: no tls encryption
+    grpcSecret:
+      # name is the name of the Kubernetes secret containing the certificates.
+      # +required
+      name: < string >
+
+      # the name of the file in the secret that contains the TLS key.
+      # +optional, default: server.key
+      key_file: < string >
+
+      # certificate_file is the name of the file in the secret that contains the certificate.
+      # +optioanl, default: server.crt
+      certificate_file: < string >
+
+      # certificate_file contains the name of the file in the secret that contains the CA.
+      # +optional, default: ca.crt
+      ca_certificate_file: < string >
+
+      # server_name is an override of the grpc server name.
+      # +optional, default: do not override server name
+      server_name: < string >
+
+    # vtctld defines the vtctld deployment for this cell.
+    # +required
+    vtctld:
+        # count is the number of vtctld pods to create.
+        # +required
+        count: < int >
+
+        # nodeSelector is a map of type string[string] that will be applied as a node selector to all vtctld pods.
+        # +optional, default: empty map
+        nodeSelector: < map[string]string >
+
+        # affinity is of type v1.Affinity (https://godoc.org/k8s.io/api/core/v1#Affinity) and will be applied to all vtctld pods
+        # this allows Kubernetes to schedule vtctld pods to specific nodes.
+        # +optional, default: no affinity 
+        affinity: < v1.Affinity >
+
+        # resources is of type v1.ResourceRequirements (https://godoc.org/k8s.io/api/core/v1#ResourceRequirements) and will be applied to all vtctld pods
+        # this controls the amount of resources the vtctld needs and can use.
+        # +optional, default: no resource requirements
+        resources: < v1.ResourceRequirements >
+
+        # extraFlags is an array of command line flags that will be applied to all pods.
+        # +optional, default: empty array
+        extraFlags: < []string >
+
+    # gateway defines the vtgate deployment for this cell.
+    # +required
+    gateway:
+        # count is the number of vtgate pods to create.
+        # +required
+        count: < int >
+
+        # cells is the list of cells that will be added to the gateway to be monitored.
+        # +optional, default: all cells in cluster 
+        cells: < []string >
+
+        # secret is a selector of type v1.SecretKeySelector (https://godoc.org/k8s.io/api/core/v1#SecretKeySelector) of the secret that will be used to provide access to the vtgate mysql server.
+        # if provided, it must have a key that is the name of the file to use and the file must be a Vitess compatible json auth file (https://github.com/vitessio/vitess/blob/master/examples/local/mysql_auth_server_static_creds.json).
+        # +optional, default: mysql_user:mysql_password
+        secret: < v1.SecretKeySelector >
+
+        # direct is a flag to set the operator to configure vtgate in direct mode (EXPERIMENTAL).
+        # +optional, default: false
+        # NOTE: requires a custom build of Vitess to be used
+        direct: < bool >
+
+        # direct secret is a selector of type v1.SecretKeySelector (https://godoc.org/k8s.io/api/core/v1#SecretKeySelector)
+        # it provides a secret for direct mode (EXPERMENTIAL).
+        # +optional, default: no secret
+        # NOTE: requires a custom build of Vitess to be used
+        directSecret: < v1.SecretKeySelector >
+
+        # nodeSelector is a map of type string[string] that will be applied as a node selector to all pods.
+        # +optional, default: empty map
+        nodeSelector: < map[string]string >
+
+        # affinity is of type v1.Affinity (https://godoc.org/k8s.io/api/core/v1#Affinity) and will be applied to all pods
+        # this allows Kubernetes to schedule vtgate pods to specific nodes.
+        # +optional, default: no affinity
+        affinity: < v1.Affinity >
+
+        # resources is of type v1.ResourceRequirements (https://godoc.org/k8s.io/api/core/v1#ResourceRequirements) and will be applied to all pods
+        # this controls the amount of resources that vtgate needs and can use.
+        # +optional, default: no resoure requirements
+        resources: < v1.ResrouceRequirements >
+
+        # extraFlags is an array of command line flags that will be applied to all pods.
+        # +optional, default: empty array
+        extraFlags: < []string >
+
+    # nodeSelector is a map of type string[string] that will be applied as a node selector to all pods in cell.
+    # +optional, default: empty map
+    nodeSelector: < map[string]string >
+
+    # affinity is of type v1.Affinity (https://godoc.org/k8s.io/api/core/v1#Affinity) and will be applied to all pods in cell
+    # this allows all pods in the cell to be scheduled to specific nodes.
+    # +optional, default: no affinity
+    affinity: < v1.Affinity >
+
+    # resources is of type v1.ResourceRequirements (https://godoc.org/k8s.io/api/core/v1#ResourceRequirements) and will be applied to all pods
+    # this controls the amount of resources that all pods need and can use.
+    # +optional, default: no resource requirements
+    resources: < v1.ResourceRequirements >
+
+    # extraFlags is an array of command line flags that will be applied to all vttablet pods in this cell.
+    # +optional, default: empty array
+    vttabletExtraFlags: < []string >
+
+    # keyspaces is the list of keyspaces in this cell.
+    # +optional, default: empty list
+    keyspaces:
+      - # name is the name of the shard, and will be the name of the database exposed through vtgate.
+        # +required
+        name: < string >
+
+        # vttabletExtraFlags is an array of command line flags that will be applied to all vttablet pods in this keyspace.
+        # +optional, default: empty array
+        extraFlags: < []string >
+
+        # shards is a list of shards in this keyspace.
+        # +optional, default: empty list
+        shards:
+        - # range is the vitess compatible range for this shard.
+          # +required
+          range: < string >
+
+          # extraFlags is an array of command line flags that will be applied to all vttablet pods in this shard.
+          # +optional, default: empty list
+          extraFlags: < []string >
+
+          # replicas is the list of replicas for this shard range.
+          # +required
+          replicas:
+          - # type is the type of this replica.
+            # +required
+            # options: master, replica, rdonly
+            type: < string >
+
+            # tablet_id is the assigned tablet_id for this replica.
+            # +optional, default: a autoprovisioned tablet_id
+            # NOTE: tablet_id's are automatically allocated for clusters if omitted, however if provided they may overlap the allocated range,
+            # do not mix auto allocated and manually allocated tablet_id's
+            tablet_id: < int >
+
+            # datastore is used to customize the mysql database that will be used to back the tablet.
+            # +optional, default: local container using mysql container defined above
+            datastore:
+              # type specify the kind of backing store being used.
+              # +optional, default: local
+              # options: rds-aurora, rds-mysql, rds-maria, mysql56, mysql57, mysql, maria, local
+              # NOTE: All flavors except local will expect a remote mysql configuration
+              type: < string >
+
+              # user specifies the username used while connecting to a remote mysql databse.
+              # +required for remote server
+              user: < string >
+
+              # server_id is the configured server_id for the remote server.
+              # +required for remote server
+              server_id: < int >
+
+              # endpoint is the mysql endpoint of the remote server.
+              # +required  for remote server
+              endpoint: < string >
+
+              # database is the database name to use to override the default.
+              # +optional, default: vt_< keyspace name >
+              database: < string >
+
+              # container overrides the container to use for a local database.
+              # +optional, default: cluster mysql container
+              container: < string >
+
+              # flavor overrides the default MYSQL_FLAVOR env variable for Vitess.
+              # +optional, default: MySQL56
+              flavor: < string >
+
+              # secret is a selector of type v1.SecretKeySelector (https://godoc.org/k8s.io/api/core/v1#SecretKeySelector) that contains the credentials for accessing the remote mysql database
+              # format is a file contaiining credentials like `{ "< username >": [ "< password>" ] `}, with the filename being the Key in the SecretKeySelector.
+              # +required for remote server
+              secret: < v1.SecretKeySelector >
+
+            # volume is of type v1.PersistentVolumeClaimSpec (https://godoc.org/k8s.io/api/core/v1#PersistentVolumeClaimSpec) and defines the peristent storage for this shard.
+            # +optional, default: `emptyDir` type storage with no limits
+            volume: < v1.PersistentVolumeClaimSpec >
+
+            # config is a text block that will be injected into all mysql containers as mysqlconfig. This can be used to override any Vitess default parameters or set custom Vitess parameters.
+            # +optional, default: empty
+            config: < string >
+
+            # nodeSelector is a map of type string[string] that will be applied as a node selector to this pod.
+            # +optional, default: empty map
+            nodeSelector: < map[string]string >
+
+            # affinity is of type v1.Affinity (https://godoc.org/k8s.io/api/core/v1#Affinity) and will be applied to this pod
+            # this allows Kubernetes to schedule vttablet pods to specific nodes.
+            # +optional, default: no affinity
+            affinity: < v1.Affinity >
+
+            # resources is of type v1.ResourceRequirements (https://godoc.org/k8s.io/api/core/v1#ResourceRequirements) and will be applied to this pod
+            # this controls the amount of resources that vttablet needs and can use.
+            # +optional, default: no resource requirements
+            resources: < v1.ResourceRequirements >
+
+            # extraFlags is an array of command line flags that will be applied to this pod .
+            # +optional, default: empty array
+            extraFlags: < []string >
+
+            # overrides is a map of port overrides, this allows you to alter the connection paramaters for novel networking setups
+            # +optional, default: auto-assigned values 
+            overrides:
+              # hostname is the advertised hostname for the tablet and the mysql server
+              # +optional, default: the pod's IP address
+              hostname: < string >
+
+              # grpc is the port to expose for GRPC traffic
+              # +optional, default: 16002
+              grpc: < int >
+
+              # web is the port to expose the HTML UI's
+              # +optional, default: 15002
+              web: < int >
+
+              # mysql is the port to expose the mysql server on
+              # +optional, default: 3306
+              mysql: < int >

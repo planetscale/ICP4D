@@ -1,0 +1,29 @@
+---
+apiVersion: "planetscale.com/v1alpha1"
+kind: "PsCluster"
+metadata:
+  name: "fresh"
+spec:
+  monitored: true
+  proxy:
+    enabled: true
+    authenticate: false
+    image: "registry.planetscale.com/vitess/proxy:latest"
+  cells:
+  - name: "example"
+    useGlobalLockserver: true
+    gateway:
+      count: 2
+    vtctld:
+      count: 1
+    keyspaces:
+    - name: "messagedb"
+      shards:
+      - range: "-80"
+        replicas:
+        - type: "replica"
+        - type: "replica"
+      - range: "80-"
+        replicas:
+        - type: "replica"
+        - type: "replica"
