@@ -8,7 +8,7 @@ Please sign up for an account on our [registry](https://registry.planetscale.com
 
 2. Install Vitess locally
 
-This will allow you to use the Vitess command line tools, especially vtctlclient. On Linux, you can install Vitess locally by cloning the [planetscale/vitess-releases](https://github.com/planetscale/vitess-releases) GitHub repository, and running `install_latest.sh`. Alternatively, instructions for manually building Vitess from source can be found  [here](https://vitess.io/docs/tutorials/local/):
+This will allow you to use the Vitess command line tools, especially vtctlclient. On Linux, you can install Vitess locally by cloning the [planetscale/vitess-releases](https://github.com/planetscale/vitess-releases) GitHub repository, and running `install_latest.sh`. Alternatively, instructions for manually building Vitess from source can be found  [here](https://vitess.io/docs/tutorials/local/)
 
 ## Installation
 
