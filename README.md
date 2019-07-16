@@ -1,4 +1,4 @@
-# ICP4D: PlanetScale Operator for Vitess
+# IBM Cloud Pak for Data: PlanetScale Operator for Vitess
 
 ### Prerequisites
 
